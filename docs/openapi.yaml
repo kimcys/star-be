@@ -9,8 +9,11 @@ info:
   version: "1.0.0"
 
 servers:
-  - url: http://127.0.0.1:8000
-    description: Local dev (php -S)
+  - url: http://localhost:8000
+    description: >
+      Local dev (php -S). Use localhost, not 127.0.0.1 - the
+      session/CSRF/consent cookies are SameSite=Lax, and the two hosts
+      count as different sites for that purpose.
 
 tags:
   - name: Consent
@@ -21,6 +24,29 @@ tags:
     description: Session-authenticated admin endpoints
 
 paths:
+  /api/:
+    get:
+      tags: [Consent]
+      summary: API root / health check
+      description: >
+        Not consumed by the frontend - a human-facing health check and
+        endpoint listing for anyone hitting the API root directly.
+      responses:
+        "200":
+          description: API is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  name: { type: string }
+                  endpoints:
+                    type: object
+                    additionalProperties: { type: string }
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
   /api/consent-status.php:
     get:
       tags: [Consent]
