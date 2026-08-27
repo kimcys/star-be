@@ -1,0 +1,51 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: star_assessment
+      DB_USER: star_app
+      DB_PASS: star_app
+      APP_ENV: development
+      APP_DEBUG: "true"
+      CORS_ALLOWED_ORIGIN: http://localhost:4200
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Static build of the sibling star-fe Angular app, served by nginx.
+  # Port 4200 matches CORS_ALLOWED_ORIGIN above and `ng serve`'s
+  # default, so the API calls made from the browser work unchanged
+  # whether the frontend is running via this container or `npm start`.
+  web:
+    build:
+      context: ../star-fe
+    ports:
+      - "4200:80"
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: star_assessment
+      MYSQL_USER: star_app
+      MYSQL_PASSWORD: star_app
+      MYSQL_ROOT_PASSWORD: root_dev_only
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./docker/mysql-init/002-grants.sql:/docker-entrypoint-initdb.d/002-grants.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_dev_only"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

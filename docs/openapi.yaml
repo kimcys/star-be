@@ -1,0 +1,286 @@
+openapi: 3.0.3
+info:
+  title: Star Assessment — Consent & Admin API
+  description: >
+    JSON API for cookie-consent tracking and the bonus secured admin
+    portal. Designed to be consumed by a separate SPA frontend (Angular) -
+    all endpoints return JSON, authentication is via PHP session cookie,
+    and state-changing admin requests require a CSRF header.
+  version: "1.0.0"
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: Local dev (php -S)
+
+tags:
+  - name: Consent
+    description: Public, unauthenticated consent flow
+  - name: CSRF
+    description: Token issuance for the double-submit CSRF pattern
+  - name: Admin
+    description: Session-authenticated admin endpoints
+
+paths:
+  /api/consent-status.php:
+    get:
+      tags: [Consent]
+      summary: Check whether the consent banner should be shown
+      description: >
+        Reads the visitor's consent cookies (httponly, so unreadable from
+        JS) and reports whether neither a valid accept nor decline
+        decision is on file. An expired or absent cookie both resolve to
+        "not present" - no separate expiry logic needed.
+      responses:
+        "200":
+          description: Status returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  shouldShowBanner: { type: boolean }
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /consent-handler.php:
+    post:
+      tags: [Consent]
+      summary: Record an accept or decline decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [accept, decline]
+            example: { action: accept }
+      responses:
+        "200":
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/AcceptResult"
+                  - $ref: "#/components/schemas/DeclineResult"
+        "400":
+          description: Missing or invalid action
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+        "500":
+          description: Server error (e.g. database unavailable)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /api/csrf-cookie.php:
+    get:
+      tags: [CSRF]
+      summary: Issue the XSRF-TOKEN cookie
+      description: >
+        Call once on app startup, before any admin login attempt. Sets a
+        non-httponly `XSRF-TOKEN` cookie whose value must be echoed back
+        as an `X-XSRF-TOKEN` header on POST requests to /api/admin/*.
+        Matches Angular's HttpClientXsrfModule default names, so no
+        frontend configuration is required.
+      responses:
+        "200":
+          description: Cookie issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+
+  /api/admin/login.php:
+    post:
+      tags: [Admin]
+      summary: Log in
+      description: >
+        5 failed attempts locks out further attempts (from the same
+        session) for 60 seconds. The error message is intentionally
+        identical for "unknown username" and "wrong password".
+      security:
+        - xsrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  username: { type: string, example: admin }
+        "400":
+          description: Missing username/password
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Invalid credentials, or locked out
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Missing/invalid CSRF token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/admin/logout.php:
+    post:
+      tags: [Admin]
+      summary: Log out
+      security:
+        - sessionCookie: []
+        - xsrfHeader: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+        "403":
+          description: Missing/invalid CSRF token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/admin/me.php:
+    get:
+      tags: [Admin]
+      summary: Check current admin session
+      description: >
+        Used by the SPA's route guard on app boot / page refresh, since
+        there's no server-rendered page to hook an auth check into.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Session status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loggedIn: { type: boolean }
+                  username: { type: string, example: admin }
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/admin/consent-logs.php:
+    get:
+      tags: [Admin]
+      summary: List recent consent decisions
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Most recent 200 consent decisions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  logs:
+                    type: array
+                    items: { $ref: "#/components/schemas/ConsentLog" }
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: PHPSESSID
+      description: Set automatically after a successful /api/admin/login.php call.
+    xsrfHeader:
+      type: apiKey
+      in: header
+      name: X-XSRF-TOKEN
+      description: >
+        Value of the XSRF-TOKEN cookie, obtained from GET
+        /api/csrf-cookie.php. Required on every state-changing admin
+        request (double-submit cookie CSRF pattern).
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error: { type: string }
+
+    AcceptResult:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        action: { type: string, example: accept }
+        data:
+          type: object
+          properties:
+            guid: { type: string, format: uuid }
+            version: { type: integer, example: 1 }
+            consented_at: { type: string, format: date-time }
+
+    DeclineResult:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        action: { type: string, example: decline }
+
+    ConsentLog:
+      type: object
+      properties:
+        guid: { type: string, format: uuid }
+        consent_status: { type: string, enum: [accepted, declined] }
+        consent_version: { type: integer }
+        consented_at: { type: string, example: "2026-08-25 15:40:14" }
+        ip_address: { type: string, nullable: true }
+        created_at: { type: string, example: "2026-08-25 23:40:14" }
+
+  responses:
+    MethodNotAllowed:
+      description: Wrong HTTP method
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
