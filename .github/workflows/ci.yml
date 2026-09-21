@@ -69,3 +69,51 @@ jobs:
           docker tag star-be:${{ github.sha }} ghcr.io/kimcys/star-be:latest
           docker push ghcr.io/kimcys/star-be:${{ github.sha }}
           docker push ghcr.io/kimcys/star-be:latest
+
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: [test, docker]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      # git pull picks up any change to deploy/ (Caddyfile, compose file)
+      # committed since the server's last deploy; docker compose pull only
+      # re-downloads the backend image if ghcr.io actually has a newer
+      # digest for :latest, so this is a no-op most of the time on that
+      # front.
+      - name: Deploy backend to the droplet
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        with:
+          host: aimanhakimcy.com
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /root/star-media
+            git pull --ff-only origin main
+            git submodule update --init --recursive
+            cd deploy
+            docker compose -f docker-compose.production.yml --env-file .env.production pull backend
+            docker compose -f docker-compose.production.yml --env-file .env.production up -d backend
+            docker image prune -f
+
+      # Checked from inside the droplet - the Cloud Firewall only allows
+      # 80/443/22 in, so the backend's own container port was never meant
+      # to be reachable directly from outside.
+      - name: Confirm the API is actually up
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        with:
+          host: aimanhakimcy.com
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            for i in $(seq 1 10); do
+              if docker exec deploy-backend-1 php bin/healthcheck.php; then exit 0; fi
+              sleep 3
+            done
+            echo "API did not report healthy after deploy" >&2
+            exit 1
