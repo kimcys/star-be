@@ -10,9 +10,15 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../includes/bootstrap.php';
-bootstrapSession();
-
-issueXsrfCookie();
 
 header('Content-Type: application/json; charset=utf-8');
-echo json_encode(['success' => true]);
+
+try {
+    bootstrapSession();
+    issueXsrfCookie();
+    echo json_encode(['success' => true]);
+} catch (Throwable $e) {
+    error_log('CSRF cookie error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Unable to issue CSRF token right now.']);
+}

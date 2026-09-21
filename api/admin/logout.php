@@ -10,7 +10,6 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../../includes/bootstrap.php';
-bootstrapSession();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -21,12 +20,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!csrfVerifyHeader()) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Invalid or missing CSRF token.']);
-    exit;
+try {
+    bootstrapSession();
+
+    if (!csrfVerifyHeader()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Invalid or missing CSRF token.']);
+        exit;
+    }
+
+    AdminAuth::logout();
+
+    echo json_encode(['success' => true]);
+} catch (Throwable $e) {
+    error_log('Admin logout error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Unable to log out right now.']);
 }
-
-AdminAuth::logout();
-
-echo json_encode(['success' => true]);

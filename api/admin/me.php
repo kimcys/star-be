@@ -10,7 +10,6 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../../includes/bootstrap.php';
-bootstrapSession();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -21,8 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-if (AdminAuth::isLoggedIn()) {
-    echo json_encode(['loggedIn' => true, 'username' => $_SESSION['admin_username']]);
-} else {
-    echo json_encode(['loggedIn' => false]);
+try {
+    bootstrapSession();
+
+    if (AdminAuth::isLoggedIn()) {
+        echo json_encode(['loggedIn' => true, 'username' => $_SESSION['admin_username']]);
+    } else {
+        echo json_encode(['loggedIn' => false]);
+    }
+} catch (Throwable $e) {
+    error_log('Admin me error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Unable to check session right now.']);
 }

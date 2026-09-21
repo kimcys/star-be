@@ -22,9 +22,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$manager = new ConsentManager(); // no DB needed - pure cookie inspection
+try {
+    $manager = new ConsentManager(); // no DB needed - pure cookie inspection
 
-echo json_encode([
-    'success' => true,
-    'shouldShowBanner' => $manager->shouldShowBanner(),
-]);
+    echo json_encode([
+        'success' => true,
+        'shouldShowBanner' => $manager->shouldShowBanner(),
+    ]);
+} catch (Throwable $e) {
+    error_log('Consent status error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Unable to check consent status right now.']);
+}
