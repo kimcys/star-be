@@ -4,6 +4,10 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^9"
+    },
+    "config": {
+        "platform": {
+            "php": "8.3"
+        }
     }
 }
-
