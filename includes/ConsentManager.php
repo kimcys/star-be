@@ -198,8 +198,31 @@ final class ConsentManager
             ':status'       => $status,
             ':version'      => $version,
             ':consented_at' => $when->format('Y-m-d H:i:s'),
-            ':ip'            => $_SERVER['REMOTE_ADDR'] ?? null,
+            ':ip'            => self::clientIp(),
             ':ua'            => $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
+    }
+
+    /**
+     * REMOTE_ADDR alone isn't the visitor's real IP once there's a reverse
+     * proxy in front (production runs behind Caddy) - it's whatever
+     * container/host made the last network hop. This container is only
+     * ever reachable through our own proxy (nothing else can route to it),
+     * so the *last* hop Caddy itself appends to X-Forwarded-For is the
+     * trustworthy value - not the first, which a client could set to
+     * anything before it ever reaches us.
+     */
+    private static function clientIp(): ?string
+    {
+        $forwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null;
+        if (is_string($forwardedFor) && $forwardedFor !== '') {
+            $hops = array_map('trim', explode(',', $forwardedFor));
+            $lastHop = end($hops);
+            if (is_string($lastHop) && $lastHop !== '') {
+                return $lastHop;
+            }
+        }
+
+        return $_SERVER['REMOTE_ADDR'] ?? null;
     }
 }

@@ -10,6 +10,11 @@ final class ConsentManagerTest extends TestCase
         $_COOKIE = [];
     }
 
+    protected function tearDown(): void
+    {
+        unset($_SERVER['HTTP_X_FORWARDED_FOR'], $_SERVER['REMOTE_ADDR']);
+    }
+
     public function testShouldShowBannerTrueWhenNoCookiesPresent(): void
     {
         $manager = new ConsentManager();
@@ -94,6 +99,58 @@ final class ConsentManagerTest extends TestCase
         $this->assertSame($result['guid'], $row['guid']);
         $this->assertSame('accepted', $row['consent_status']);
         $this->assertSame(1, (int) $row['consent_version']);
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    public function testRecordAcceptLogsRemoteAddrWhenNoProxyHeaderPresent(): void
+    {
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+        $pdo = TestDatabase::create();
+        $manager = new ConsentManager($pdo);
+
+        $manager->recordAccept();
+
+        $row = $pdo->query('SELECT * FROM consent_logs')->fetch();
+        $this->assertSame('203.0.113.9', $row['ip_address']);
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    public function testRecordAcceptPrefersTheLastForwardedForHopOverRemoteAddr(): void
+    {
+        // REMOTE_ADDR here is Caddy's own container IP (the direct TCP
+        // peer); the real visitor IP is the last hop Caddy itself appends
+        // to X-Forwarded-For - that's the one that should get logged.
+        $_SERVER['REMOTE_ADDR'] = '172.18.0.5';
+        $_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.9';
+        $pdo = TestDatabase::create();
+        $manager = new ConsentManager($pdo);
+
+        $manager->recordAccept();
+
+        $row = $pdo->query('SELECT * FROM consent_logs')->fetch();
+        $this->assertSame('203.0.113.9', $row['ip_address']);
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    public function testRecordAcceptUsesTheLastHopWhenForwardedForHasMultipleProxies(): void
+    {
+        $_SERVER['REMOTE_ADDR'] = '172.18.0.5';
+        // A client could inject a fake first entry themselves - only the
+        // hop our own trusted proxy appended (the last one) is safe to trust.
+        $_SERVER['HTTP_X_FORWARDED_FOR'] = 'evil-spoofed-value, 203.0.113.9';
+        $pdo = TestDatabase::create();
+        $manager = new ConsentManager($pdo);
+
+        $manager->recordAccept();
+
+        $row = $pdo->query('SELECT * FROM consent_logs')->fetch();
+        $this->assertSame('203.0.113.9', $row['ip_address']);
     }
 
     /**
