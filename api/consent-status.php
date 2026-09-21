@@ -30,7 +30,7 @@ try {
         'shouldShowBanner' => $manager->shouldShowBanner(),
     ]);
 } catch (Throwable $e) {
-    error_log('Consent status error: ' . $e->getMessage());
+    Logger::error('Consent status error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to check consent status right now.']);
 }

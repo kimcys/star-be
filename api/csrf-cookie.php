@@ -18,7 +18,7 @@ try {
     issueXsrfCookie();
     echo json_encode(['success' => true]);
 } catch (Throwable $e) {
-    error_log('CSRF cookie error: ' . $e->getMessage());
+    Logger::error('CSRF cookie error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to issue CSRF token right now.']);
 }

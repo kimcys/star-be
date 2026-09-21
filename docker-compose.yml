@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "8000:8080"
     volumes:
       - .:/var/www/html
     environment:
@@ -17,6 +17,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
 
   # Static build of the sibling star-fe Angular app, served by nginx.
   # Port 4200 matches CORS_ALLOWED_ORIGIN above and `ng serve`'s
@@ -26,9 +31,15 @@ services:
     build:
       context: ../star-fe
     ports:
-      - "4200:80"
+      - "4200:8080"
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
 
   db:
     image: mysql:8.0
@@ -46,6 +57,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
 
 volumes:
   db_data:

@@ -51,6 +51,11 @@ Notes:
   (`DB_HOST=db`). If you want to inspect the database directly, use
   `docker compose exec db mysql -u root -proot_dev_only star_assessment`
   rather than a host-side MySQL client.
+- The `app` image runs Apache on an unprivileged port (`8080` inside
+  the container, mapped to `8000` on the host) as `www-data` end to
+  end — not the PHP built-in dev server, and not root. `GET
+  /api/health.php` backs the image's `HEALTHCHECK` (visible via
+  `docker compose ps`) and is a cheap DB-connectivity probe on its own.
 - `.env` is ignored entirely when running via Docker — real environment
   variables (set in `docker-compose.yml`) always take priority over
   `.env`, so Compose's `environment:` block is the actual source of

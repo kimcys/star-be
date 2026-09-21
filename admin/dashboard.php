@@ -17,7 +17,7 @@ try {
     $logs = $stmt->fetchAll();
     $loadError = null;
 } catch (Throwable $e) {
-    error_log('Admin dashboard query error: ' . $e->getMessage());
+    Logger::error('Admin dashboard query error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
     $logs = [];
     $loadError = 'Unable to load consent logs right now.';
 }

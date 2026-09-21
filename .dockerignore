@@ -1,3 +1,17 @@
 .git
 .env
+.env.example
 *.log
+.dockerignore
+Dockerfile
+docker-compose.yml
+tests
+docs
+database
+docker
+vendor
+composer.json
+composer.lock
+phpunit.xml
+.phpunit.result.cache
+README.md

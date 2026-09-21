@@ -9,7 +9,7 @@ try {
 } catch (Throwable $e) {
     // Best-effort: whatever went wrong, the safest outcome for the user
     // is still to land back on the login page rather than see a raw error.
-    error_log('Admin logout (page) error: ' . $e->getMessage());
+    Logger::error('Admin logout (page) error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
 }
 
 header('Location: /admin/login.php');

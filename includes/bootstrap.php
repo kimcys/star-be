@@ -72,13 +72,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? null) === 'OPTIONS') {
  * unless APP_ENV=development.
  */
 set_exception_handler(function (Throwable $e): void {
-    error_log(sprintf(
-        'Uncaught %s: %s in %s:%d',
-        get_class($e),
-        $e->getMessage(),
-        $e->getFile(),
-        $e->getLine()
-    ));
+    Logger::error('Uncaught exception', [
+        'exception' => get_class($e),
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+    ]);
 
     if (!headers_sent()) {
         http_response_code(500);

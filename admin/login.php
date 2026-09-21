@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Intentionally generic - never say "wrong password" vs "unknown user".
             $error = 'Invalid username or password.';
         } catch (Throwable $e) {
-            error_log('Admin login error: ' . $e->getMessage());
+            Logger::error('Admin login error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
             $error = 'Something went wrong. Please try again later.';
         }
     }

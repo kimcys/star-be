@@ -43,7 +43,7 @@ try {
     // Cookie may already be queued for sending even if the DB write
     // fails - graceful degradation for the user, while we still
     // surface a 500 so logging/ops know something broke.
-    error_log('Consent handler error: ' . $e->getMessage());
+    Logger::error('Consent handler error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to process consent right now.']);
 }

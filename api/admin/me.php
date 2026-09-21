@@ -29,7 +29,7 @@ try {
         echo json_encode(['loggedIn' => false]);
     }
 } catch (Throwable $e) {
-    error_log('Admin me error: ' . $e->getMessage());
+    Logger::error('Admin me error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to check session right now.']);
 }

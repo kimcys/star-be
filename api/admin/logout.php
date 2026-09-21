@@ -33,7 +33,7 @@ try {
 
     echo json_encode(['success' => true]);
 } catch (Throwable $e) {
-    error_log('Admin logout error: ' . $e->getMessage());
+    Logger::error('Admin logout error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Unable to log out right now.']);
 }
