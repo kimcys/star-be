@@ -35,13 +35,28 @@ function issueXsrfCookie(): void
 {
     $token = csrfToken(); // creates one in $_SESSION if none exists yet
 
-    setcookie('XSRF-TOKEN', $token, [
+    $options = [
         'expires'  => 0,       // session cookie - dies when the browser closes
         'path'     => '/',
         'httponly' => false,   // must be JS-readable, unlike our other cookies
         'samesite' => 'Lax',
         'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
-    ]);
+    ];
+
+    // Only set when the API runs on a different subdomain than the SPA
+    // (e.g. api.aimanhakimcy.com vs aimanhakimcy.com) - a cookie this
+    // API issues is host-only by default, so frontend JS on the *other*
+    // subdomain could never read it via document.cookie without this.
+    // Unset (the default) for same-origin/local setups, where host-only
+    // is exactly right and broadening it would be needless. Subdomains
+    // of the same registrable domain still count as the same "site" for
+    // SameSite=Lax purposes, so this doesn't weaken that protection.
+    $cookieDomain = env('COOKIE_DOMAIN', '');
+    if ($cookieDomain !== null && $cookieDomain !== '') {
+        $options['domain'] = $cookieDomain;
+    }
+
+    setcookie('XSRF-TOKEN', $token, $options);
 }
 
 /**
