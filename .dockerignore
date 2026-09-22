@@ -6,7 +6,6 @@
 Dockerfile
 docker-compose.yml
 tests
-docs
 database
 docker
 vendor

@@ -9,6 +9,8 @@ info:
   version: "1.0.0"
 
 servers:
+  - url: https://api.aimanhakimcy.com
+    description: Production (live).
   - url: http://localhost:8000
     description: >
       Local dev (php -S). Use localhost, not 127.0.0.1 - the
