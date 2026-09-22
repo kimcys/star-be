@@ -173,6 +173,13 @@ http://127.0.0.1:8000/docs/api-docs.html
 Same-origin as the API, so the "Try it out" buttons fire real requests
 against your running server with no CORS setup needed.
 
+**Also live in production:** https://api.aimanhakimcy.com/ redirects
+straight here automatically — there's nothing else at the bare API
+domain root (see `index.php`; directory listing is disabled, so
+visiting `/` directly used to just 403). The spec's `servers:` list
+puts the production URL first, so "Try it out" fires against the real
+deployed API, not `localhost`, when browsed there.
+
 ## Running the automated test suite
 
 ```bash
@@ -262,6 +269,13 @@ docker compose exec app php bin/create_admin.php admin YourPasswordHere123
 ```
 
 If a login attempt returns `401 Invalid username or password`, that's the app correctly rejecting a mismatch — it doesn't mean anything is broken, it means the password you tried doesn't match what's in the database. Re-run the command above with a password you'll remember, then retry.
+
+**The live production admin account was created the exact same way** —
+SSH'd into the droplet and ran this same command inside the running
+container. The real password isn't in this repo or anywhere on
+GitHub — see the root README's
+[Trying it live](../README.md#trying-it-live) for how it's actually
+shared.
 
 ## JSON API reference
 
