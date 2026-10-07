@@ -10,6 +10,7 @@ if (AdminAuth::isLoggedIn()) {
 }
 
 $error = null;
+$lockedFor = 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfVerify($_POST['csrf_token'] ?? null)) {
@@ -23,8 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: /admin/dashboard.php');
                 exit;
             }
-            // Intentionally generic - never say "wrong password" vs "unknown user".
-            $error = 'Invalid username or password.';
+            $lockedFor = AdminAuth::lockoutSecondsRemaining(getDbConnection(), $username);
+            if ($lockedFor > 0) {
+                $error = 'Too many failed attempts. This account is locked for ' . $lockedFor . ' seconds. Please wait, then reload this page.';
+            } else {
+                // Intentionally generic - never say "wrong password" vs "unknown user".
+                $error = 'Invalid username or password.';
+            }
         } catch (Throwable $e) {
             Logger::error('Admin login error', ['exception' => get_class($e), 'message' => $e->getMessage()]);
             $error = 'Something went wrong. Please try again later.';
@@ -49,9 +55,9 @@ $csrfToken = csrfToken();
 
     <form method="post" action="/admin/login.php">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES) ?>">
-        <label>Username <input type="text" name="username" required autofocus></label><br>
-        <label>Password <input type="password" name="password" required></label><br>
-        <button type="submit">Log in</button>
+        <label>Username <input type="text" name="username" required<?= $lockedFor > 0 ? ' disabled' : ' autofocus' ?>></label><br>
+        <label>Password <input type="password" name="password" required<?= $lockedFor > 0 ? ' disabled' : '' ?>></label><br>
+        <button type="submit"<?= $lockedFor > 0 ? ' disabled' : '' ?>>Log in</button>
     </form>
 </body>
 </html>

@@ -47,9 +47,20 @@ try {
     if (AdminAuth::attempt(getDbConnection(), $username, $password)) {
         echo json_encode(['success' => true, 'username' => $_SESSION['admin_username']]);
     } else {
-        // Intentionally generic - never say "wrong password" vs "unknown user".
-        http_response_code(401);
-        echo json_encode(['success' => false, 'error' => 'Invalid username or password.']);
+        $lockedFor = AdminAuth::lockoutSecondsRemaining(getDbConnection(), $username);
+        if ($lockedFor > 0) {
+            http_response_code(423);
+            echo json_encode([
+                'success' => false,
+                'locked' => true,
+                'retryAfterSeconds' => $lockedFor,
+                'error' => 'Too many failed attempts. This account is locked.',
+            ]);
+        } else {
+            // Intentionally generic - never say "wrong password" vs "unknown user".
+            http_response_code(401);
+            echo json_encode(['success' => false, 'error' => 'Invalid username or password.']);
+        }
     }
 } catch (Throwable $e) {
     Logger::error('Admin login error', ['exception' => get_class($e), 'message' => $e->getMessage()]);

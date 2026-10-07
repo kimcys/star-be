@@ -73,6 +73,24 @@ final class AdminAuth
         return false;
     }
 
+    /**
+     * Seconds left on the account's lockout, or 0 if it is not locked
+     * (or the username does not exist). Used only to tell the login
+     * screen to show a "locked" message and disable the form.
+     */
+    public static function lockoutSecondsRemaining(PDO $db, string $username): int
+    {
+        $stmt = $db->prepare('SELECT locked_until FROM admin_users WHERE username = :username LIMIT 1');
+        $stmt->execute([':username' => $username]);
+        $lockedUntil = $stmt->fetchColumn();
+
+        if ($lockedUntil === false || !self::isLockedOut($lockedUntil)) {
+            return 0;
+        }
+
+        return max(1, strtotime($lockedUntil) - time());
+    }
+
     public static function logout(): void
     {
         $_SESSION = [];

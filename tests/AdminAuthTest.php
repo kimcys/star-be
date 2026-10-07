@@ -101,6 +101,23 @@ final class AdminAuthTest extends TestCase
         $this->assertFalse(AdminAuth::isLoggedIn());
     }
 
+    public function testLockoutSecondsRemainingReportsActiveLock(): void
+    {
+        $pdo = TestDatabase::create();
+        TestDatabase::seedAdmin($pdo, 'admin', 'correct-horse-battery');
+
+        $this->assertSame(0, AdminAuth::lockoutSecondsRemaining($pdo, 'admin'));
+
+        for ($i = 0; $i < 5; $i++) {
+            AdminAuth::attempt($pdo, 'admin', 'wrong-password');
+        }
+
+        $remaining = AdminAuth::lockoutSecondsRemaining($pdo, 'admin');
+        $this->assertGreaterThan(0, $remaining);
+        $this->assertLessThanOrEqual(60, $remaining);
+        $this->assertSame(0, AdminAuth::lockoutSecondsRemaining($pdo, 'nobody'));
+    }
+
     /**
      * @runInSeparateProcess
      */
